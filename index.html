@@ -1,17 +1,20 @@
 <!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>デザインマンホールマップ</title>
+<title>地盤マップ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.1.0/ol.css">
 <script src="https://cdn.jsdelivr.net/npm/ol@v7.1.0/dist/ol.js"></script>
 </head><body>
 <h1 id=title></h1>
+<input type=date id=date_start>〜<input type=date id=date_end> N値:<input type=text id=n_min value=0>〜<input type=text id=n_max value=50>
 <div id="olmap" style="width:auto;height:600px;"></div>
 <div id="popup" class="ol-popup">
   <div id="popup-content"></div>
 </div>
+<a href=https://github.com/GeoFUKUI/jiban-map/>src on GitHub</a>
 
 <script type="module">
   import { OLMap } from "https://eiichimiyagawa.github.io/OLMap/v1/OLMap.js";
   import { CSV } from "https://js.sabae.cc/CSV.js";
+  import { Day } from "https://js.sabae.cc/DateTime.js";
 
   // iOS14以前に関する対応（top-level await未対応のため）
   onload = async() => {
@@ -40,16 +43,59 @@
       zoom: 9
     });
     map.addVectorLayer("marker");
-    const layer = map.getLayer("marker");
+    let layer = map.getLayer("marker");
 
-    data.forEach(d => {
-      addMarker(layer, {
-        longitude: d.lng,
-        latitude: d.lat,
-        content: `<p style="text-align: left;">${d.bname}</p>`,
-        icon: "./image/icon.png"
+    const addMarker2 = (layer, data) => {
+      data.forEach(d => {
+        const link = (d) => d.startsWith("https://") ? `<a href=${d}>詳細</a>` : d;
+        const content = Object.entries(d).map(d => `${d[0]}: ${link(d[1])}`).join("<br>");
+        addMarker(layer, {
+          longitude: d.lng,
+          latitude: d.lat,
+          content,
+          icon: "./image/icon.png"
+        });
       });
-    });
+    }
+
+    addMarker2(layer, data);
+
+    console.log(data[0]);
+    let first = new Day(data[0].startday);
+    for (const d of data) {
+      if (first.isAfter(d.startday)) {
+        first = d;
+      }
+    }
+    date_start.value = first.toString();
+    date_end.value = new Day().toString();
+
+    date_start.onchange = date_end.onchange = n_min.onchange = n_max.onchange = () => {
+      const st = new Day(date_start.value);
+      const ed = new Day(date_end.value);
+      const min = parseInt(n_min.value);
+      const max = parseInt(n_max.value);
+      console.log(st, ed, min, max);
+
+      const data2 = data.filter(d => {
+        const day = new Day(d.startday);
+        if (day.isBefore(st) || day.isAfter(ed)) {
+          return false;
+        }
+        if (d.nval === "") {
+          return false;
+        }
+        const nval = parseInt(d.nval);
+        console.log(nval);
+        return nval >= min && nval <= max;
+      });
+      console.log(data2.length);
+
+      map.map.removeLayer(layer);
+      map.addVectorLayer("marker");
+      layer = map.getLayer("marker");
+      addMarker2(layer, data2);
+    };
   }
 </script>
 
@@ -65,6 +111,7 @@
   }
 
   .ol-popup {
+    text-align: left;
     position: absolute;
     background-color: white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
