@@ -33,8 +33,8 @@
 
     title.textContent = document.title;
 
-    const data = await CSV.fetch("./data.csv");
-    const manholes = await CSV.toJSON(data);
+    const url = "https://GeoFUKUI.github.io/jiban-opendata/boring.csv";
+    const data = await CSV.fetchJSON(url);
 
     const map = new OLMap({
       zoom: 9
@@ -42,15 +42,11 @@
     map.addVectorLayer("marker");
     const layer = map.getLayer("marker");
 
-    manholes.forEach((manhole) => {
-      let content = `${manhole["名前"]}<br />${manhole["都道府県"]}${manhole["市区町村"]}${manhole["住所"]}<br />${manhole["緯度"]}, ${manhole["経度"]}<br />`
-      if (manhole["画像URL"]) {
-        content += `<img src="${manhole["画像URL"]}" style="width: 100%;"/><br />`;
-      }
+    data.forEach(d => {
       addMarker(layer, {
-        longitude: Number(manhole["経度"]),
-        latitude: Number(manhole["緯度"]),
-        content: content + `<p style="text-align: left;">${manhole["詳細"]}</p>`,
+        longitude: d.lng,
+        latitude: d.lat,
+        content: `<p style="text-align: left;">${d.bname}</p>`,
         icon: "./image/icon.png"
       });
     });
